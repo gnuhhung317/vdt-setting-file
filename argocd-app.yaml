@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: web-app
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: 'https://github.com/gnuhhung317/todoapp-be.git'
+      path: charts
+      targetRevision: HEAD
+      helm:
+        valueFiles:
+          -  https://raw.githubusercontent.com/gnuhhung317/todo-config/refs/heads/main/nextjs-values.yaml
+    - repoURL: 'https://github.com/gnuhhung317/todoapp-fe.git'
+      path: charts
+      targetRevision: HEAD
+      helm:
+        valueFiles:
+          - https://raw.githubusercontent.com/gnuhhung317/todo-config/refs/heads/main/spring-boot-values.yaml
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
