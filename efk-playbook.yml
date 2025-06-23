@@ -1,0 +1,57 @@
+- name: Deploy EFK Stack using Helm on Kubernetes
+  hosts: master
+  become: yes
+  vars:
+    namespace: logging
+
+  tasks:
+    - name: Create logging namespace
+      command: kubectl create namespace {{ namespace }}
+      ignore_errors: yes
+
+    - name: Add Elastic Helm repo
+      command: helm repo add elastic https://helm.elastic.co
+      args:
+        creates: /tmp/helm-elastic-added
+
+    - name: Add kiwigrid Helm repo for fluentd
+      command: helm repo add kiwigrid https://kiwigrid.github.io
+      args:
+        creates: /tmp/helm-kiwigrid-added
+
+    - name: Update Helm repos
+      command: helm repo update
+
+    - name: Install Elasticsearch
+      command: >
+        helm install elasticsearch elastic/elasticsearch
+        --namespace {{ namespace }}
+        --version 7.17.0
+        --set replicas=1
+        --set minimumMasterNodes=1
+        --set volumeClaimTemplate.storageClassName=standard
+        --set volumeClaimTemplate.resources.requests.storage=2Gi
+      args:
+        creates: /tmp/elasticsearch-installed
+
+    - name: Install Kibana
+      command: >
+        helm install kibana elastic/kibana
+        --namespace {{ namespace }}
+        --version 7.17.0
+        --set service.type=NodePort
+        --set env.ELASTICSEARCH_HOSTS=http://elasticsearch-master:9200
+      args:
+        creates: /tmp/kibana-installed
+
+    - name: Install Fluentd
+      command: >
+        helm install fluentd kiwigrid/fluentd-elasticsearch
+        --namespace {{ namespace }}
+        --set elasticsearch.host=elasticsearch-master
+        --set elasticsearch.port=9200
+        --set tolerations[0].key=node-role.kubernetes.io/master
+        --set tolerations[0].effect=NoSchedule
+        --set rbac.create=true
+      args:
+        creates: /tmp/fluentd-installed
