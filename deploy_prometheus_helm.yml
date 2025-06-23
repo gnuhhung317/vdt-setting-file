@@ -1,0 +1,74 @@
+---
+- name: Deploy Prometheus via Helm on Kubernetes using venv
+  hosts: master
+  become: yes
+  vars:
+    venv_path: /opt/ansible_venv
+  tasks:
+
+    - name: Install python3 and python3-venv
+      apt:
+        name:
+          - python3
+          - python3-venv
+          - python3-pip
+        state: present
+        update_cache: yes
+
+    - name: Create virtual environment if not exists
+      command: python3 -m venv {{ venv_path }}
+      args:
+        creates: "{{ venv_path }}/bin/activate"
+
+    - name: Install required Python libraries inside venv
+      pip:
+        name:
+          - kubernetes
+          - openshift
+        virtualenv: "{{ venv_path }}"
+        virtualenv_command: python3 -m venv
+
+    - name: Set Python interpreter to venv
+      set_fact:
+        ansible_python_interpreter: "{{ venv_path }}/bin/python3"
+
+    - name: Create monitoring namespace
+      kubernetes.core.k8s:
+        name: monitoring
+        api_version: v1
+        kind: Namespace
+        state: present
+
+    - name: Add Prometheus Helm repository
+      kubernetes.core.helm_repository:
+        name: prometheus-community
+        repo_url: https://prometheus-community.github.io/helm-charts
+
+    - name: Deploy Prometheus using Helm
+      kubernetes.core.helm:
+        name: prometheus
+        chart_ref: prometheus-community/kube-prometheus-stack
+        release_namespace: monitoring
+        values:
+          prometheus:
+            prometheusSpec:
+              serviceMonitorSelectorNilUsesHelmValues: false
+            service:
+              type: NodePort
+              nodePort: 30090
+          grafana:
+            enabled: false
+          alertmanager:
+            enabled: false
+        wait: yes
+
+    - name: Wait for Prometheus pods to be Running
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: monitoring
+        label_selectors:
+          - app.kubernetes.io/name=prometheus
+      register: prometheus_pods
+      until: prometheus_pods.resources | selectattr('status.phase') | list | length > 0
+      retries: 30
+      delay: 10
