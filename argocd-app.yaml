@@ -11,13 +11,13 @@ spec:
       targetRevision: HEAD
       helm:
         valueFiles:
-          -  https://raw.githubusercontent.com/gnuhhung317/todo-config/refs/heads/main/nextjs-values.yaml
+          -  https://raw.githubusercontent.com/gnuhhung317/todo-config/refs/heads/main/spring-boot-values.yaml
     - repoURL: 'https://github.com/gnuhhung317/todoapp-fe.git'
       path: charts
       targetRevision: HEAD
       helm:
         valueFiles:
-          - https://raw.githubusercontent.com/gnuhhung317/todo-config/refs/heads/main/spring-boot-values.yaml
+          - https://raw.githubusercontent.com/gnuhhung317/todo-config/refs/heads/main/nextjs-values.yaml
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: default
